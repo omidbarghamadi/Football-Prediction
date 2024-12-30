@@ -3,10 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .serializers import RegisterSerializer, LoginSerializer, UpdateProfileSerializer, TopUsersSerializer
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from .models import CustomUser
-# from CIS_control.models import CisControl
 
 
 class RegisterView(APIView):
@@ -38,15 +37,7 @@ class UpdateProfileView(APIView):
     permission_classes = []
 
     def put(self, request, *args, **kwargs):
-        user_id = request.data.get('id')
-        if not user_id:
-            return Response({"error": "شناسه کاربری الزامی است."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            user = CustomUser.objects.get(id=user_id)
-        except CustomUser.DoesNotExist:
-            return Response({"error": "کاربری با این شناسه یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
-
+        user = request.user
         serializer = UpdateProfileSerializer(instance=user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -71,6 +62,7 @@ class LogoutView(APIView):
 
 
 class TopUsersView(APIView):
+    permission_classes = []
 
     def get(self, request):
         top_users = CustomUser.objects.order_by('-score')[:10]  # مرتب‌سازی نزولی و انتخاب 10 نفر برتر

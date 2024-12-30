@@ -19,16 +19,16 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         if not value.isdigit():
-            raise serializers.ValidationError("شماره موبایل باید فقط شامل اعداد باشد.")
+            raise serializers.ValidationError({"message": "شماره موبایل باید فقط شامل اعداد باشد."})
         if len(value) < 11:
-            raise serializers.ValidationError("شماره موبایل باید حداقل 11 رقم باشد.")
+            raise serializers.ValidationError({"message": "شماره موبایل باید حداقل 11 رقم باشد."})
         if User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError("این شماره موبایل قبلاً ثبت شده است.")
+            raise serializers.ValidationError({"message": "این شماره موبایل قبلاً ثبت شده است."})
         return value
 
     def validate_email(self, value):
         if value and User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("این ایمیل قبلاً ثبت شده است.")
+            raise serializers.ValidationError({"message": "این ایمیل قبلاً ثبت شده است."})
         return value
 
     def create(self, validated_data):
@@ -61,21 +61,21 @@ class LoginSerializer(serializers.Serializer):
         password = data.get('password')
 
         if not phone_number or not password:
-            raise serializers.ValidationError("شماره تلفن و رمز عبور الزامی هستند.")
+            raise serializers.ValidationError({"message": "شماره تلفن و رمز عبور الزامی هستند."})
 
         # ابتدا بررسی کنید که کاربری با این شماره تلفن وجود دارد
         try:
             user = CustomUser.objects.get(phone_number=phone_number)
         except CustomUser.DoesNotExist:
-            raise AuthenticationFailed("شماره تلفن یا رمز عبور نادرست است.")
+            raise AuthenticationFailed({"message": "شماره تلفن یا رمز عبور نادرست است."})
 
         # بررسی فعال بودن کاربر
         if not user.is_active:
-            raise AuthenticationFailed("این حساب کاربری غیرفعال است.")
+            raise AuthenticationFailed({"message": "این حساب کاربری غیرفعال است."})
 
         # بررسی رمز عبور
         if not user.check_password(password):
-            raise AuthenticationFailed("شماره تلفن یا رمز عبور نادرست است.")
+            raise AuthenticationFailed({"message": "شماره تلفن یا رمز عبور نادرست است."})
 
         user.last_login = datetime.now()
         data['user'] = user
@@ -83,11 +83,20 @@ class LoginSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         user = validated_data['user']
+
+        # محاسبه رتبه کاربر
+        rank = (
+            CustomUser.objects.filter(score__gt=user.score)
+            .count()
+        ) + 1
+
+        # ایجاد یا بازیابی توکن
         token, created = Token.objects.get_or_create(user=user)
+
         return {
             "token": token.key,
-            "user_id": user.id,
             "score": user.score,
+            "rank": rank,  # افزودن رتبه کاربر
             "first_name": user.first_name,
             "last_name": user.last_name,
             "phone_number": user.phone_number,
@@ -124,7 +133,7 @@ class TopUsersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('id', 'phone_number', 'first_name', 'last_name', 'score')
+        fields = ('id', 'phone_number', 'score')
 
     def get_phone_number(self, obj):
         phone_number = obj.phone_number
