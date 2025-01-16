@@ -53,3 +53,14 @@ class Prediction(models.Model):
     def __str__(self):
         return f"{self.user.username}'s prediction for {self.match} scored {self.score}"
 
+
+class Table(models.Model):
+    rank = models.PositiveSmallIntegerField()
+    team = models.CharField(max_length=40)
+    points = models.PositiveSmallIntegerField()
+    games = models.PositiveSmallIntegerField()
+
+    class Meta:
+        db_table = 'Table'
+        verbose_name_plural = "Table"
+        verbose_name = "Table"

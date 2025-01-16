@@ -1,5 +1,5 @@
 from django.utils.timezone import now
-from Prediction.models import Match, Team
+from Prediction.models import Match, Team, Table
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -37,7 +37,7 @@ def get_matches():
 
     # تنظیم WebDriver
     service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(service=service)
 
     # باز کردن صفحه وب
     url = "https://football360.ir/predictions/da20f58a-2d05-4c81-a4a3-c775e9f894fa"
@@ -59,14 +59,16 @@ def get_matches():
     prediction_deadlines = [element.text for element in prediction_deadline_elements]
 
     for i in range(0, len(teams), 2):
+
         team1_name = teams[i]
+
         team2_name = teams[i + 1]
         prediction_deadline = prediction_deadlines[i // 2]
-
+        print("**", team1_name + "-" + team2_name, "***")
         try:
             # بررسی وجود تیم‌ها در پایگاه داده
-            team1 = Team.objects.get_or_create(name=team1_name)
-            team2 = Team.objects.get_or_create(name=team2_name)
+            team1 = Team.objects.get(name=team1_name)
+            team2 = Team.objects.get(name=team2_name)
 
             # بررسی اینکه آیا مسابقه مشابهی وجود دارد
             existing_match = Match.objects.filter(
@@ -86,7 +88,7 @@ def get_matches():
                 match.save()
 
         except IntegrityError as e:
-            continue
+            print("+++++++++++++++++++ ERor",e)
 
     # بستن مرورگر
     driver.quit()
@@ -103,7 +105,7 @@ def update_matches():
     chrome_options.add_argument("--no-sandbox")
 
     service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(service=service)
 
     url = "https://football360.ir/league/matches"
     try:
@@ -184,8 +186,6 @@ def update_predictions():
             prediction.score = calculate_prediction_score(predicted_score1, predicted_score2, actual_score1,
                                                           actual_score2)
             prediction.save()
-            print(
-                f"امتیاز پیش‌بینی کاربر {prediction.user.username} برای مسابقه {match.team1.name} vs {match.team2.name} به‌روزرسانی شد.")
 
 
 def update_user_scores():
@@ -204,7 +204,58 @@ def update_user_scores():
     # به‌روزرسانی فیلد امتیاز کاربران
     for user_id, total_score in user_scores.items():
         CustomUser.objects.filter(id=user_id).update(score=total_score)
-        print(f"امتیاز کاربر {user_id} به {total_score} به‌روزرسانی شد.")
+
+
+def update_table():
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')  # حالت بدون رابط کاربری
+    chrome_options.add_argument('--disable-gpu')  # غیرفعال کردن GPU
+    chrome_options.add_argument('--no-sandbox')  # غیرفعال کردن sandbox در محیط‌های لینوکس
+
+    # تنظیم WebDriver
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service)
+
+    try:
+        # باز کردن صفحه وب
+        url = "https://www.varzesh3.com/"  # آدرس صفحه‌ای که جدول در آن قرار دارد
+        driver.get(url)
+
+        # انتظار برای بارگذاری محتوا
+        time.sleep(2)
+
+        # پیدا کردن جدول بر اساس کلاس آن
+        table = driver.find_element(By.CLASS_NAME, "league-standing")
+
+        # استخراج داده‌های جدول
+        rows = table.find_elements(By.TAG_NAME, "tr")
+
+        # پیمایش ردیف‌ها و استخراج اطلاعات
+        for row in rows[1:]:  # اولین ردیف شامل هدر است
+            cells = row.find_elements(By.TAG_NAME, "td")
+            if cells:
+                try:
+                    rank = int(cells[0].text.strip())
+                    team_name = cells[1].text.strip()
+                    games = int(cells[2].text.strip())
+                    points = int(cells[3].text.strip())
+
+                    # به‌روزرسانی یا ایجاد رکورد در جدول Table
+                    table_record, created = Table.objects.update_or_create(
+                        team=team_name,
+                        defaults={
+                            "rank": rank,
+                            "games": games,
+                            "points": points,
+                        }
+                    )
+
+                except Exception as e:
+                    continue
+
+    finally:
+        # بستن مرورگر
+        driver.quit()
 
 
 class DailyTaskMiddleware:
@@ -221,6 +272,7 @@ class DailyTaskMiddleware:
                 update_matches()
                 update_predictions()
                 update_user_scores()
+                update_table()
                 self.last_run_date = current_time
 
         response = self.get_response(request)

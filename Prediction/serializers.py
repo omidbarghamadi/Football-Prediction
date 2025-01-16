@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Team, Match, Prediction
+from .models import Team, Match, Prediction, Table
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -52,4 +52,10 @@ class PredictionSerializer(serializers.ModelSerializer):
             }
         )
         return prediction
+
+
+class TableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        fields = ['rank', 'team', 'points', 'games']
 

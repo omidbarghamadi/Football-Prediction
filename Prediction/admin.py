@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Team, Match, Prediction
+from .models import Team, Match, Prediction, Table
 
 
 class TeamAdmin(admin.ModelAdmin):
@@ -20,6 +20,14 @@ class PredictionAdmin(admin.ModelAdmin):
     list_filter = ['score']
 
 
+class TableAdmin(admin.ModelAdmin):
+    list_display = ('rank', 'team', 'points', 'games')  # نمایش این ستون‌ها در لیست
+    list_filter = ('rank',)  # افزودن فیلتر برای رتبه‌ها
+    search_fields = ('team',)  # امکان جستجوی تیم‌ها
+    ordering = ('rank',)  # مرتب‌سازی پیش‌فرض بر اساس رتبه
+
+
 admin.site.register(Team, TeamAdmin)
 admin.site.register(Match, MatchAdmin)
 admin.site.register(Prediction, PredictionAdmin)
+admin.site.register(Table, TableAdmin)

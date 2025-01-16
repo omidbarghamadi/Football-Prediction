@@ -70,3 +70,21 @@ class TopUsersView(APIView):
         return Response(serializer.data)
 
 
+class InfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        rank = (
+                   CustomUser.objects.filter(score__gt=user.score)
+                   .count()
+               ) + 1
+        data = {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "score": user.score,
+            "rank": rank,
+            "email": user.email,
+        }
+        return Response(data, status=status.HTTP_200_OK)
